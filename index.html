@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Capitán Perú vs La Paloma</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            font-family: 'Press Start 2P', cursive;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #0d1117;
+            color: #ffffff;
+        }
+
+        .pixel-corners {
+            clip-path: polygon(
+                0 4px, 4px 4px, 4px 0,
+                calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+                100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+                4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+            );
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn-retro {
+            background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+            border-bottom: 4px solid #450a0a;
+            border-right: 2px solid #450a0a;
+            transition: all 0.1s ease;
+        }
+
+        .btn-retro:active {
+            transform: translateY(2px);
+            border-bottom: 2px solid #450a0a;
+        }
+
+        .btn-control {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-control:active {
+            background: rgba(220, 38, 38, 0.5);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 overflow-hidden select-none">
+
+    <!-- Encabezado del Juego -->
+    <div class="w-full max-w-4xl flex justify-between items-center mb-2 px-2">
+        <div class="flex items-center gap-2">
+            <span class="text-red-5xl text-2xl md:text-3xl">🛡️</span>
+            <div>
+                <h1 class="text-xs md:text-sm text-red-500 font-bold tracking-widest">CAPITÁN PERÚ</h1>
+                <p class="text-[8px] md:text-[10px] text-gray-400">LA PERSECUCIÓN PALOMERA</p>
+            </div>
+        </div>
+        <div class="text-right text-[10px] md:text-xs">
+            <span class="text-yellow-400">RECORD: <span id="highScore">0</span>m</span>
+        </div>
+    </div>
+
+    <!-- Contenedor del Juego -->
+    <div class="relative w-full max-w-4xl aspect-[16/9] bg-slate-900 rounded-lg overflow-hidden border-4 border-red-700 shadow-2xl">
+        <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+        <!-- UI Superior del Canvas -->
+        <div id="hud" class="absolute top-3 left-3 right-3 flex justify-between items-center pointer-events-none text-[10px] md:text-xs">
+            <div class="flex gap-4 bg-black/60 p-2 rounded border border-white/20">
+                <div class="text-red-400">SALUD: <span id="healthDisplay">❤️❤️❤️</span></div>
+                <div class="text-yellow-400">DISTANCIA: <span id="distanceDisplay">0</span>m</div>
+            </div>
+            <div class="flex gap-4 bg-black/60 p-2 rounded border border-white/20">
+                <div class="text-yellow-300">PUNTOS: <span id="scoreDisplay">0</span></div>
+                <div class="text-cyan-400">ESCUDO: <span id="shieldCD">LISTO</span></div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Inicio / Game Over -->
+        <div id="overlay" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 text-center z-20">
+            <div class="max-w-md w-full bg-slate-800 p-6 rounded-xl border-2 border-red-600 shadow-2xl space-y-4">
+                <div class="text-4xl md:text-5xl animate-bounce">🇵🇪🕊️</div>
+                <h2 id="overlayTitle" class="text-sm md:text-lg text-red-500 uppercase leading-relaxed">¡PERSIGUE A LA PALOMA!</h2>
+                <p id="overlaySub" class="text-[9px] md:text-[11px] text-gray-300 leading-normal">
+                    Esquiva los conos de tráfico, pozos de agua y espinas urbanas mientras persigues a la paloma traviesa. ¡Usa tu escudo incaico!
+                </p>
+                <div class="text-[9px] text-yellow-400 bg-black/50 p-3 rounded text-left space-y-1">
+                    <p>⌨️ <strong>Controles de Teclado:</strong></p>
+                    <p>• Flechas / A-D: Moverse</p>
+                    <p>• Espacio / W / Flecha Arriba: Saltar</p>
+                    <p>• X / Shift: Lanzar Escudo Redentor</p>
+                </div>
+                <button id="startBtn" onclick="startGame()" class="btn-retro w-full py-3 px-6 text-xs md:text-sm font-bold text-white uppercase rounded cursor-pointer tracking-wider">
+                    ¡INICIAR MISIÓN!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles Táctiles Mobile -->
+    <div class="w-full max-w-4xl grid grid-cols-2 gap-4 mt-3 px-2 md:hidden">
+        <div class="flex gap-2">
+            <button id="btnLeft" class="btn-control flex-1 py-4 rounded-lg text-2xl text-white active:bg-red-600/50">◀</button>
+            <button id="btnRight" class="btn-control flex-1 py-4 rounded-lg text-2xl text-white active:bg-red-600/50">▶</button>
+        </div>
+        <div class="flex gap-2">
+            <button id="btnThrow" class="btn-control flex-1 py-4 rounded-lg text-xl text-yellow-400 font-bold active:bg-yellow-600/50">🛡️</button>
+            <button id="btnJump" class="btn-control flex-1 py-4 rounded-lg text-2xl text-white font-bold active:bg-red-600/50">▲</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración del Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Dimensiones base lógicas
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 450;
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        // Estado del Juego
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        let score = 0;
+        let distance = 0;
+        let highScore = localStorage.getItem('capitan_peru_hs') || 0;
+        document.getElementById('highScore').innerText = highScore;
+
+        // Audio Sintetizado (Web Audio API para evitar URLs externas)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            if (type === 'jump') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'coin') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(900, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'shield') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.25);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        // Teclado
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        // Controles Táctiles
+        const touchState = { left: false, right: false, jump: false, throw: false };
+        const bindTouch = (id, key) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); touchState[key] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); touchState[key] = false; });
+        };
+        bindTouch('btnLeft', 'left');
+        bindTouch('btnRight', 'right');
+        bindTouch('btnJump', 'jump');
+        bindTouch('btnThrow', 'throw');
+
+        // Jugador - CAPITÁN PERÚ
+        const player = {
+            x: 100,
+            y: 300,
+            width: 36,
+            height: 56,
+            vx: 0,
+            vy: 0,
+            speed: 5,
+            jumpStrength: -12.5,
+            gravity: 0.55,
+            isGrounded: false,
+            health: 3,
+            maxHealth: 3,
+            invulnerableTimer: 0,
+            shieldCooldown: 0,
+            facingRight: true,
+            hasShield: true
+        };
+
+        // Escudo lanzado
+        let activeShield = null;
+
+        // La Paloma
+        const pigeon = {
+            x: 600,
+            y: 150,
+            width: 30,
+            height: 26,
+            wingAngle: 0,
+            targetY: 150,
+            speed: 3
+        };
+
+        // Objetos del Mundo
+        let platforms = [];
+        let obstacles = [];
+        let collectibles = [];
+        let particles = [];
+        let cameraX = 0;
+
+        // Generador de Nivel Continuo
+        let nextSpawnX = 0;
+
+        function initLevel() {
+            platforms = [
+                { x: -100, y: 380, width: 1000, height: 100 }, // Suelo inicial
+            ];
+            obstacles = [];
+            collectibles = [];
+            particles = [];
+            nextSpawnX = 800;
+
+            for (let i = 0; i < 5; i++) {
+                spawnChunk();
+            }
+        }
+
+        function spawnChunk() {
+            const width = Math.random() * 200 + 150;
+            const gap = Math.random() * 90 + 70;
+            const y = 380 - (Math.random() > 0.5 ? Math.random() * 100 : 0);
+
+            const platX = nextSpawnX + gap;
+            platforms.push({ x: platX, y: y, width: width, height: 150 });
+
+            // Generar Obstáculos
+            if (Math.random() > 0.3) {
+                const obsType = Math.random() > 0.5 ? 'cone' : 'spikes';
+                obstacles.push({
+                    x: platX + width / 2 - 15,
+                    y: y - 30,
+                    width: 30,
+                    height: 30,
+                    type: obsType
+                });
+            }
+
+            // Generar Monedas/Plátanos
+            if (Math.random() > 0.2) {
+                collectibles.push({
+                    x: platX + Math.random() * (width - 40) + 20,
+                    y: y - 50 - Math.random() * 40,
+                    width: 20,
+                    height: 20,
+                    collected: false
+                });
+            }
+
+            nextSpawnX = platX + width;
+        }
+
+        // Bucle Principal
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // --- Movimiento del Jugador ---
+            const moveLeft = keys['ArrowLeft'] || keys['KeyA'] || touchState.left;
+            const moveRight = keys['ArrowRight'] || keys['KeyD'] || touchState.right;
+            const doJump = keys['Space'] || keys['ArrowUp'] || keys['KeyW'] || touchState.jump;
+            const doThrow = keys['KeyX'] || keys['ShiftLeft'] || touchState.throw;
+
+            if (moveLeft) {
+                player.vx = -player.speed;
+                player.facingRight = false;
+            } else if (moveRight) {
+                player.vx = player.speed;
+                player.facingRight = true;
+            } else {
+                player.vx *= 0.8;
+            }
+
+            // Salto
+            if (doJump && player.isGrounded) {
+                player.vy = player.jumpStrength;
+                player.isGrounded = false;
+                playSound('jump');
+            }
+
+            // Gravedad
+            player.vy += player.gravity;
+
+            // Actualizar Posiciones
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Cooldown de Inmunidad y Escudo
+            if (player.invulnerableTimer > 0) player.invulnerableTimer--;
+            if (player.shieldCooldown > 0) player.shieldCooldown--;
+
+            // --- Lanzar Escudo ---
+            if (doThrow && player.shieldCooldown === 0 && !activeShield) {
+                activeShield = {
+                    x: player.x + (player.facingRight ? player.width : -20),
+                    y: player.y + 15,
+                    width: 24,
+                    height: 24,
+                    vx: player.facingRight ? 12 : -12,
+                    vy: -1,
+                    distanceTraveled: 0
+                };
+                player.shieldCooldown = 90; // Cooldown
+                playSound('shield');
+            }
+
+            // Mover Escudo
+            if (activeShield) {
+                activeShield.x += activeShield.vx;
+                activeShield.y += activeShield.vy;
+                activeShield.distanceTraveled += Math.abs(activeShield.vx);
+
+                if (activeShield.distanceTraveled > 350) {
+                    activeShield = null;
+                }
+            }
+
+            // --- Colisiones con Plataformas ---
+            player.isGrounded = false;
+            for (let plat of platforms) {
+                if (player.x + player.width > plat.x &&
+                    player.x < plat.x + plat.width &&
+                    player.y + player.height >= plat.y &&
+                    player.y + player.height <= plat.y + 18 &&
+                    player.vy >= 0) {
+                    
+                    player.y = plat.y - player.height;
+                    player.vy = 0;
+                    player.isGrounded = true;
+                }
+            }
+
+            // Caída al vacío
+            if (player.y > GAME_HEIGHT + 100) {
+                takeDamage(3); // Muerte instantánea al caer
+            }
+
+            // --- Colisiones con Obstáculos ---
+            for (let obs of obstacles) {
+                if (checkCollision(player, obs)) {
+                    if (player.invulnerableTimer === 0) {
+                        takeDamage(1);
+                        player.vy = -6; // Rebote
+                    }
+                }
+
+                // Destruir obstáculos con el escudo
+                if (activeShield && checkCollision(activeShield, obs)) {
+                    createParticles(obs.x + 15, obs.y + 15, '#ef4444', 8);
+                    obs.destroyed = true;
+                    activeShield = null;
+                    score += 50;
+                    playSound('hit');
+                }
+            }
+            obstacles = obstacles.filter(o => !o.destroyed);
+
+            // --- Colisiones con Coleccionables ---
+            for (let item of collectibles) {
+                if (!item.collected && checkCollision(player, item)) {
+                    item.collected = true;
+                    score += 100;
+                    createParticles(item.x + 10, item.y + 10, '#facc15', 6);
+                    playSound('coin');
+                }
+            }
+
+            // --- Control de la Paloma ---
+            pigeon.x = player.x + 350; // La paloma se mantiene adelante
+            pigeon.wingAngle += 0.2;
+            pigeon.y = 150 + Math.sin(pigeon.wingAngle) * 40;
+
+            // Si el escudo golpea a la paloma
+            if (activeShield && checkCollision(activeShield, pigeon)) {
+                score += 300;
+                createParticles(pigeon.x + 15, pigeon.y + 13, '#ffffff', 12);
+                activeShield = null;
+                playSound('hit');
+            }
+
+            // --- Generación Infinita de Terreno ---
+            if (player.x + GAME_WIDTH > nextSpawnX - 400) {
+                spawnChunk();
+            }
+
+            // Limpieza de objetos antiguos fuera de cámara
+            platforms = platforms.filter(p => p.x + p.width > player.x - 400);
+            obstacles = obstacles.filter(o => o.x + o.width > player.x - 400);
+            collectibles = collectibles.filter(c => c.x + c.width > player.x - 400);
+
+            // --- Camara ---
+            cameraX = player.x - 150;
+
+            // Actualizar Distancia
+            distance = Math.max(distance, Math.floor(player.x / 10));
+
+            // Actualizar Partículas
+            for (let p of particles) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+            }
+            particles = particles.filter(p => p.alpha > 0);
+
+            // Actualizar HUD
+            document.getElementById('healthDisplay').innerText = '❤️'.repeat(Math.max(0, player.health));
+            document.getElementById('distanceDisplay').innerText = distance;
+            document.getElementById('scoreDisplay').innerText = score;
+            document.getElementById('shieldCD').innerText = player.shieldCooldown === 0 ? 'LISTO' : `${Math.ceil(player.shieldCooldown / 60)}s`;
+        }
+
+        function takeDamage(amount) {
+            player.health -= amount;
+            player.invulnerableTimer = 60; // 1 segundo de inmunidad
+            playSound('hit');
+            createParticles(player.x + player.width / 2, player.y + player.height / 2, '#dc2626', 10);
+
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    color: color,
+                    alpha: 1.0,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        // --- Renderizado ---
+        function draw() {
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Fondo con Parallax (Montañas/Ciudad)
+            drawBackground();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Dibujar Plataformas (Techos de Lima / Pistas)
+            for (let plat of platforms) {
+                // Base
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                // Borde Superior Rojo/Blanco
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(plat.x, plat.y, plat.width, 8);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(plat.x, plat.y + 8, plat.width, 4);
+            }
+
+            // Dibujar Obstáculos
+            for (let obs of obstacles) {
+                if (obs.type === 'cone') {
+                    // Cono de Tráfico
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + 15, obs.y);
+                    ctx.lineTo(obs.x + 30, obs.y + 30);
+                    ctx.lineTo(obs.x, obs.y + 30);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(obs.x + 5, obs.y + 15, 20, 5);
+                } else {
+                    // Espinas
+                    ctx.fillStyle = '#64748b';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(obs.x + i * 10 + 5, obs.y);
+                        ctx.lineTo(obs.x + i * 10 + 10, obs.y + 30);
+                        ctx.lineTo(obs.x + i * 10, obs.y + 30);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Dibujar Coleccionables (Monedas Sol)
+            for (let item of collectibles) {
+                if (!item.collected) {
+                    ctx.fillStyle = '#eab308';
+                    ctx.beginPath();
+                    ctx.arc(item.x + 10, item.y + 10, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fef08a';
+                    ctx.fillText('S/', item.x + 5, item.y + 14);
+                }
+            }
+
+            // Dibujar Escudo Lanzado
+            if (activeShield) {
+                drawShield(activeShield.x, activeShield.y, 24);
+            }
+
+            // Dibujar la Paloma
+            drawPigeon(pigeon.x, pigeon.y);
+
+            // Dibujar Capitán Perú
+            if (player.invulnerableTimer % 6 < 3) { // Parpadeo al recibir daño
+                drawCapitanPeru(player.x, player.y, player.width, player.height, player.facingRight);
+            }
+
+            // Dibujar Partículas
+            for (let p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+            ctx.globalAlpha = 1.0;
+
+            ctx.restore();
+
+            requestAnimationFrame(drawLoop);
+        }
+
+        // Renderizado del Capitán Perú (Fiel a la foto)
+        function drawCapitanPeru(x, y, w, h, facingRight) {
+            ctx.save();
+            ctx.translate(x + w / 2, y + h / 2);
+            if (!facingRight) ctx.scale(-1, 1);
+
+            // --- Capa Trasera (Efecto Heroico Ligero) ---
+            ctx.fillStyle = '#b91c1c';
+            ctx.beginPath();
+            ctx.moveTo(-6, -h/2 + 15);
+            ctx.lineTo(-14, h/2 - 10);
+            ctx.lineTo(2, h/2 - 10);
+            ctx.fill();
+
+            // --- Cuerpo Principal (Traje) ---
+            // Torso Lateral Rojo (Costados)
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-w/2 + 2, -h/2 + 16, w - 4, h - 28);
+
+            // Franja Blanca Central (Traje Bandera Perú)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-7, -h/2 + 16, 14, h - 28);
+
+            // --- Detalle del Pecho (Escudo Nacional / Emblema) ---
+            // Guirnalda Verde
+            ctx.strokeStyle = '#15803d';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, -10, 5, 0, Math.PI);
+            ctx.stroke();
+            // Escudo Amarillo/Dorado
+            ctx.fillStyle = '#eab308';
+            ctx.fillRect(-3, -13, 6, 5);
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-3, -10, 3, 3);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, -10, 3, 3);
+
+            // --- Cinturón Negro con Hebilla ---
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(-11, 4, 22, 5);
+            ctx.fillStyle = '#e2e8f0'; // Hebilla metálica
+            ctx.fillRect(-3, 4, 6, 5);
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(-1, 5, 2, 3);
+
+            // --- Piernas y Botas ---
+            // Pierna Izquierda / Derecha (Rojo y Blanco)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-9, 9, 7, 14);
+            ctx.fillRect(2, 9, 7, 14);
+
+            // Botas Negras Altas
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(-10, 20, 8, h/2 - 20);
+            ctx.fillRect(2, 20, 8, h/2 - 20);
+            // Suela de las botas
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-11, h/2 - 3, 9, 3);
+            ctx.fillRect(2, h/2 - 3, 9, 3);
+
+            // --- Brazos y Guantes Rojos ---
+            // Armas / Brazos
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-w/2, -h/2 + 18, 5, 16); // Brazo izq
+            ctx.fillRect(w/2 - 5, -h/2 + 18, 5, 16); // Brazo der
+
+            // Guantes Rojos Largos
+            ctx.fillStyle = '#991b1b';
+            ctx.fillRect(-w/2 - 1, -h/2 + 28, 6, 12);
+            ctx.fillRect(w/2 - 5, -h/2 + 28, 6, 12);
+
+            // --- Cabeza, Capucha y Antafaz ---
+            // Capucha Blanca
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.arc(0, -h/2 + 10, 11, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Rostro visible (Tono de piel)
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(0, -h/2 + 12, 7, 0, Math.PI);
+            ctx.fill();
+
+            // Antifaz / Máscara Roja en los Ojos
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.ellipse(0, -h/2 + 9, 9, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ojos
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(1, -h/2 + 8, 3, 2);
+
+            // Saludo Heroico / Pose (Mano en la frente si no está saltando)
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(2, -h/2 + 2, 9, 4);
+
+            // --- Escudo en la Mano ---
+            if (player.hasShield && !activeShield) {
+                drawShield(-14, -2, 20);
+            }
+
+            ctx.restore();
+        }
+
+        // Renderizado del Escudo Peruano con Gran Detalle
+        function drawShield(x, y, radius) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Borde / Grosor 3D
+            ctx.fillStyle = '#7f1d1d';
+            ctx.beginPath();
+            ctx.arc(1, 1, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Círculo Exterior Rojo
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Círculo Intermedio Blanco
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Círculo Interior Rojo
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Centro: Escudo Nacional Peruano
+            ctx.fillStyle = '#facc15'; // Fondo dorado
+            ctx.fillRect(-4, -5, 8, 10);
+
+            // Detalle tricolor interno (Camélido / Árbol / Cornucopia)
+            ctx.fillStyle = '#0284c7'; // Azul
+            ctx.fillRect(-3, -4, 3, 4);
+            ctx.fillStyle = '#ffffff'; // Blanco
+            ctx.fillRect(0, -4, 3, 4);
+            ctx.fillStyle = '#dc2626'; // Rojo
+            ctx.fillRect(-3, 0, 6, 4);
+
+            // Guirnalda de Laureles Dorados alrededor del escudo central
+            ctx.strokeStyle = '#15803d';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.42, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Brillo Reflejo en el Escudo
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(-radius * 0.3, -radius * 0.3, radius * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Renderizado de la Paloma
+        function drawPigeon(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Cuerpo Gris
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 14, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cabeza
+            ctx.beginPath();
+            ctx.arc(-10, -5, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pico
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath();
+            ctx.moveTo(-16, -5);
+            ctx.lineTo(-21, -3);
+            ctx.lineTo(-16, -1);
+            ctx.fill();
+
+            // Ala en movimiento
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath();
+            const wingY = Math.sin(pigeon.wingAngle) * 10;
+            ctx.moveTo(-2, 0);
+            ctx.lineTo(8, -12 + wingY);
+            ctx.lineTo(10, 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Fondo Dinámico Parallax
+        function drawBackground() {
+            // Cielos Gradientes
+            const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            grad.addColorStop(0, '#1e1b4b');
+            grad.addColorStop(1, '#312e81');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Siluetas de Cerros/Edificios lejanos
+            ctx.fillStyle = '#1e293b';
+            for (let i = 0; i < 10; i++) {
+                const bgX = (i * 120 - cameraX * 0.2) % (GAME_WIDTH + 120) - 60;
+                ctx.fillRect(bgX, 220, 80, 200);
+            }
+
+            ctx.fillStyle = '#0f172a';
+            for (let i = 0; i < 8; i++) {
+                const bgX = (i * 180 - cameraX * 0.4) % (GAME_WIDTH + 180) - 80;
+                ctx.fillRect(bgX, 280, 110, 180);
+            }
+        }
+
+        // Ciclo Principal de Juego
+        function drawLoop() {
+            update();
+            draw();
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            score = 0;
+            distance = 0;
+            player.x = 100;
+            player.y = 200;
+            player.vx = 0;
+            player.vy = 0;
+            player.health = 3;
+            player.shieldCooldown = 0;
+            activeShield = null;
+            
+            initLevel();
+            document.getElementById('overlay').classList.add('hidden');
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            if (distance > highScore) {
+                highScore = distance;
+                localStorage.setItem('capitan_peru_hs', highScore);
+                document.getElementById('highScore').innerText = highScore;
+            }
+
+            document.getElementById('overlayTitle').innerText = '¡MISIÓN FALLIDA!';
+            document.getElementById('overlaySub').innerText = `Recorriste ${distance} metros y obtuviste ${score} puntos persiguiendo a la paloma.`;
+            document.getElementById('startBtn').innerText = 'REINTENTAR';
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        // Ajuste de Responsive para pantalla
+        window.addEventListener('resize', () => {
+            // El canvas usa Tailwind aspect-ratio y encaja solo.
+        });
+
+        // Cargar primera vista
+        window.onload = () => {
+            initLevel();
+            requestAnimationFrame(drawLoop);
+        };
+    </script>
+</body>
+</html>
