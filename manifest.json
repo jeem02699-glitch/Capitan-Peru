@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Capitan Peru",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "CapitanPeru",
+  "start_url": "/https://jeem02699-glitch.github.io/Capitan-Peru/",
+  "theme_color": "#ffffff",
+  "lang": "es"
+}
