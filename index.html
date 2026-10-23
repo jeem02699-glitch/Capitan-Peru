@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capitán Perú vs La Paloma</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link link rel="manifest" href="manifest.json">
+    <title>Capitán Perú</title>
+    <script src="https://cdn.tailwindcss.com"></script><script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./pwabuilder-sw.js').catch(err => {
+            console.log('Service Worker no registrado:', err);
+          });
+        });
+      }
+ <link rel="manifest" href="./manifest.json">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
